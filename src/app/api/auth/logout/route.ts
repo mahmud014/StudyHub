@@ -1,8 +1,22 @@
-import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
+import { NextResponse } from "next/server";
+import { cookies } from "next/headers";
 
 export async function POST() {
-  const cookieStore = await cookies();
-  cookieStore.delete('studyhub_session');
-  return NextResponse.json({ success: true });
+  try {
+    const cookieStore = await cookies();
+
+    // Securely delete the HTTP-only session cookie
+    cookieStore.delete("studyhub_session");
+
+    return NextResponse.json({
+      success: true,
+      message: "লগআউট সফল হয়েছে",
+    });
+  } catch (error) {
+    console.error("Error during logout:", error);
+    return NextResponse.json(
+      { success: false, error: "লগআউট করতে সমস্যা হয়েছে" },
+      { status: 500 },
+    );
+  }
 }

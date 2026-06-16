@@ -1,4 +1,22 @@
-import { NextRequest, NextResponse } from 'next/server';
+import clientPromise from "@/lib/mongodb";
+import { NextRequest, NextResponse } from "next/server";
+import { ObjectId } from "mongodb";
+
+// ============================================================
+// TYPES & INTERFACES FOR MONGO CHAT HISTORY
+// ============================================================
+interface ChatMessage {
+  role: string;
+  content: string;
+  createdAt: Date;
+}
+
+interface ChatHistory {
+  sessionId: string;
+  messages: ChatMessage[];
+  updatedAt: Date;
+  createdAt?: Date;
+}
 
 const SYSTEM_PROMPT = `তুমি "স্টাডি হাব" এর AI শিক্ষক সহকারী। তুমি বাংলাদেশের ক্লাস ৯-১০ শিক্ষার্থীদের সাহায্য করো।
 
@@ -18,91 +36,111 @@ const SYSTEM_PROMPT = `তুমি "স্টাডি হাব" এর AI শ
 - অতিরিক্ত জটিল তথ্য এড়াও
 - বাংলাদেশের প্রেক্ষাপটে উদাহরণ ব্যবহার করো`;
 
-// In-memory conversation store (per session)
-const conversations = new Map<string, { role: string; content: string }[]>();
-
 export async function POST(req: NextRequest) {
   try {
     const { message, sessionId, history } = await req.json();
 
     if (!message || !message.trim()) {
       return NextResponse.json(
-        { success: false, error: 'মেসেজ দিন' },
-        { status: 400 }
+        { success: false, error: "মেসেজ দিন" },
+        { status: 400 },
       );
     }
 
-    // Build messages array
-    const messages: { role: string; content: string }[] = [
-      { role: 'assistant', content: SYSTEM_PROMPT },
+    // 1. সিস্টেম প্রম্পট সরাসরি 'system' রোল দিয়ে শুরু করুন
+    const apiMessages: { role: string; content: string }[] = [
+      { role: "system", content: SYSTEM_PROMPT },
     ];
 
-    // Add conversation history
+    // হিস্ট্রি থাকলে পাস করুন
     if (history && Array.isArray(history)) {
-      messages.push(...history);
+      apiMessages.push(
+        ...history.map((m) => ({ role: m.role, content: m.content })),
+      );
     }
 
-    // Add current user message
-    messages.push({ role: 'user', content: message.trim() });
+    // বর্তমান ইউজারের মেসেজ পুশ করুন
+    apiMessages.push({ role: "user", content: message.trim() });
 
-    // Limit context to last 20 messages to avoid token overflow
+    // টোকেন ওভারফ্লো এড়াতে সর্বশেষ ২০টি মেসেজ ট্রিম করার সঠিক লজিক
+    const systemPromptObj = apiMessages[0];
+    const contextMessages = apiMessages.slice(1); // সিস্টেম প্রম্পট বাদে বাকি মেসেজ
+
     const trimmedMessages = [
-      messages[0], // System prompt
-      ...messages.slice(Math.max(1, messages.length - 20)),
+      systemPromptObj,
+      ...contextMessages.slice(Math.max(0, contextMessages.length - 20)),
     ];
 
     const apiKey = process.env.OPENAI_API_KEY;
     let aiResponse = "";
 
     if (apiKey) {
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${apiKey}`,
+      const response = await fetch(
+        "https://api.openai.com/v1/chat/completions",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${apiKey}`,
+          },
+          body: JSON.stringify({
+            model: "gpt-4o-mini",
+            messages: trimmedMessages,
+          }),
         },
-        body: JSON.stringify({
-          model: 'gpt-4o-mini',
-          messages: trimmedMessages.map(m => ({
-            role: m.role === 'assistant' && m.content === SYSTEM_PROMPT ? 'system' : m.role,
-            content: m.content
-          })),
-        }),
-      });
+      );
 
       if (!response.ok) {
         const errText = await response.text();
-        console.error('OpenAI API error response:', errText);
+        console.error("OpenAI API error response:", errText);
         throw new Error(`OpenAI API returned status ${response.status}`);
       }
 
       const resData = await response.json();
       aiResponse = resData.choices?.[0]?.message?.content || "";
     } else {
-      // Fallback mock response so the app doesn't break if API key is not configured
-      aiResponse = `হ্যালো! আমি আপনার স্টাডি হাব এআই সহকারী। অনুগ্রহ করে চ্যাট সেবাটি সক্রিয় করতে আপনার .env ফাইলে \`OPENAI_API_KEY\` যুক্ত করুন। (আপনি জিজ্ঞেস করেছিলেন: "${message.trim()}")`;
+      // Fallback mock response
+      aiResponse = `হ্যালো! আমি আপনার স্টাডি হাব এআই সহকারী। অনুগ্রহ করে চ্যাট সেবাটি সক্রিয় করতে আপনার .env ফাইলে \`OPENAI_API_KEY\` যুক্ত করুন। (আপনি জিজ্ঞেস করেছিলেন: "${message.trim()}")`;
     }
 
     if (!aiResponse) {
       return NextResponse.json(
-        { success: false, error: 'AI থেকে কোনো উত্তর আসেনি' },
-        { status: 500 }
+        { success: false, error: "AI থেকে কোনো উত্তর আসেনি" },
+        { status: 500 },
       );
     }
 
-    // Store conversation
+    // 2. মঙ্গোডিবি-তে চ্যাট হিস্ট্রি সেভ বা আপডেট করা (প্রোডাকশন রেডি পদ্ধতি)
     if (sessionId) {
-      const existing = conversations.get(sessionId) || [];
-      existing.push(
-        { role: 'user', content: message.trim() },
-        { role: 'assistant', content: aiResponse }
+      const client = await clientPromise;
+      const db = client.db();
+
+      // typed collection utilizing TypeScript schema interface to allow nested operators safely
+      await db.collection<ChatHistory>("ChatHistory").updateOne(
+        { sessionId: sessionId },
+        {
+          $push: {
+            messages: {
+              $each: [
+                {
+                  role: "user",
+                  content: message.trim(),
+                  createdAt: new Date(),
+                },
+                {
+                  role: "assistant",
+                  content: aiResponse,
+                  createdAt: new Date(),
+                },
+              ],
+              $slice: -40, // Keeps last 40 entries directly in database
+            },
+          },
+          $set: { updatedAt: new Date() },
+          $setOnInsert: { createdAt: new Date() },
+        } as any, // Type-assert update document to cleanly bypass version-dependent driver schema issues
+        { upsert: true },
       );
-      // Keep last 40 messages
-      if (existing.length > 40) {
-        conversations.set(sessionId, existing.slice(-40));
-      } else {
-        conversations.set(sessionId, existing);
-      }
     }
 
     return NextResponse.json({
@@ -111,22 +149,45 @@ export async function POST(req: NextRequest) {
       sessionId,
     });
   } catch (error) {
-    console.error('Chat API error:', error);
+    console.error("Chat API error:", error);
     return NextResponse.json(
-      {
-        success: false,
-        error: 'এআই সহকারীর সাথে সংযোগে সমস্যা হয়েছে',
-      },
-      { status: 500 }
+      { success: false, error: "এআই সহকারীর সাথে সংযোগে সমস্যা হয়েছে" },
+      { status: 500 },
     );
   }
 }
 
+// ============================================================
+// DELETE — ডাটাবেজ থেকে নির্দিষ্ট সেশনের চ্যাট হিস্ট্রি মুছে ফেলা
+// ============================================================
 export async function DELETE(req: NextRequest) {
-  const { searchParams } = new URL(req.url);
-  const sessionId = searchParams.get('sessionId');
-  if (sessionId) {
-    conversations.delete(sessionId);
+  try {
+    const { searchParams } = new URL(req.url);
+    const sessionId = searchParams.get("sessionId");
+
+    if (!sessionId) {
+      return NextResponse.json(
+        { success: false, error: "সেশন আইডি প্রয়োজন" },
+        { status: 400 },
+      );
+    }
+
+    const client = await clientPromise;
+    const db = client.db();
+
+    await db
+      .collection<ChatHistory>("ChatHistory")
+      .deleteOne({ sessionId: sessionId });
+
+    return NextResponse.json({
+      success: true,
+      message: "চ্যাট হিস্ট্রি মুছে ফেলা হয়েছে",
+    });
+  } catch (error) {
+    console.error("Delete Chat API error:", error);
+    return NextResponse.json(
+      { success: false, error: "চ্যাট হিস্ট্রি মুছতে সমস্যা হয়েছে" },
+      { status: 500 },
+    );
   }
-  return NextResponse.json({ success: true });
 }

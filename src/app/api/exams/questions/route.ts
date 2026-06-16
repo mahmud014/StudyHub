@@ -1,90 +1,94 @@
-import { db } from '@/lib/db';
-import { NextResponse } from 'next/server';
-import { getSessionUser } from '@/lib/auth';
+import { NextResponse } from "next/server";
+import { getSessionUser } from "@/lib/auth";
+import clientPromise from "@/lib/mongodb";
+import { ObjectId } from "mongodb";
 
-interface QuestionInput {
-  question: string;
-  optionA: string;
-  optionB: string;
-  optionC: string;
-  optionD: string;
-  correctAnswer: string; // A, B, C, D
-  explanation?: string;
-  marks?: number;
-  order?: number;
-}
-
+/**
+ * API route to add questions to an exam.
+ * Uses native MongoDB driver to ensure performance and avoid Prisma.
+ */
 export async function POST(request: Request) {
   try {
     const sessionUser = await getSessionUser();
-    if (!sessionUser || (sessionUser.role !== 'admin' && sessionUser.role !== 'teacher')) {
+
+    // Verify session
+    if (
+      !sessionUser ||
+      (sessionUser.role !== "admin" && sessionUser.role !== "teacher")
+    ) {
       return NextResponse.json(
-        { success: false, error: 'অননুমোদিত অ্যাক্সেস' },
-        { status: 403 }
+        { success: false, error: "অননুমোদিত অ্যাক্সেস" },
+        { status: 403 },
       );
     }
 
     const body = await request.json();
-    const { examId, questions } = body as {
-      examId: string;
-      questions: QuestionInput[];
-    };
+    const { examId, questions } = body;
 
-    if (!examId || !questions || !Array.isArray(questions) || questions.length === 0) {
+    // Basic Validation
+    if (!examId || !Array.isArray(questions) || questions.length === 0) {
       return NextResponse.json(
-        { success: false, error: 'পরীক্ষা ID এবং প্রশ্নসমূহ প্রয়োজন' },
-        { status: 400 }
+        { success: false, error: "পরীক্ষা ID এবং প্রশ্নসমূহ প্রদান করুন" },
+        { status: 400 },
       );
     }
 
-    // Verify exam exists
-    const exam = await db.exam.findUnique({ where: { id: examId } });
+    const client = await clientPromise;
+    const db = client.db();
+
+    // 1. Verify existence of the exam
+    const exam = await db
+      .collection("exams")
+      .findOne({ _id: new ObjectId(examId) });
     if (!exam) {
       return NextResponse.json(
-        { success: false, error: 'পরীক্ষা পাওয়া যায়নি' },
-        { status: 404 }
+        { success: false, error: "পরীক্ষাটি খুঁজে পাওয়া যায়নি" },
+        { status: 404 },
       );
     }
 
-    // Create all questions
-    const createdQuestions = await db.$transaction(
-      questions.map((q, index) =>
-        db.examQuestion.create({
-          data: {
-            examId,
-            question: q.question,
-            optionA: q.optionA,
-            optionB: q.optionB,
-            optionC: q.optionC,
-            optionD: q.optionD,
-            correctAnswer: q.correctAnswer,
-            explanation: q.explanation || null,
-            marks: q.marks || 1,
-            order: q.order ?? index + 1,
-          },
-        })
-      )
+    // 2. Map data for MongoDB insertion
+    const questionsToInsert = questions.map((q: any, index: number) => ({
+      examId: new ObjectId(examId),
+      question: q.question,
+      optionA: q.optionA,
+      optionB: q.optionB,
+      optionC: q.optionC,
+      optionD: q.optionD,
+      correctAnswer: q.correctAnswer,
+      explanation: q.explanation || null,
+      marks: Number(q.marks) || 1,
+      order: q.order ?? index + 1,
+      createdAt: new Date(),
+    }));
+
+    // 3. Bulk insert
+    const insertResult = await db
+      .collection("examQuestions")
+      .insertMany(questionsToInsert);
+
+    // 4. Atomically increment the total marks in the exam document
+    const totalAddedMarks = questions.reduce(
+      (sum: number, q: any) => sum + (Number(q.marks) || 1),
+      0,
     );
+    await db
+      .collection("exams")
+      .updateOne(
+        { _id: new ObjectId(examId) },
+        { $inc: { totalMarks: totalAddedMarks } },
+      );
 
-    // Update exam totalMarks based on questions
-    const totalMarks = questions.reduce((sum, q) => sum + (q.marks || 1), 0);
-    await db.exam.update({
-      where: { id: examId },
-      data: { totalMarks },
-    });
-
+    // Returning success message for your toast sonner implementation
     return NextResponse.json({
       success: true,
-      data: {
-        questionsCreated: createdQuestions.length,
-        totalMarks,
-      },
+      message: `${insertResult.insertedCount} টি প্রশ্ন সফলভাবে যোগ করা হয়েছে!`,
     });
   } catch (error) {
-    console.error('Error creating exam questions:', error);
+    console.error("Database Error:", error);
     return NextResponse.json(
-      { success: false, error: 'প্রশ্ন তৈরি করতে সমস্যা হয়েছে' },
-      { status: 500 }
+      { success: false, error: "সিস্টেম এরর, আবার চেষ্টা করুন" },
+      { status: 500 },
     );
   }
 }

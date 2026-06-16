@@ -1,81 +1,139 @@
-import { NextRequest, NextResponse } from 'next/server';
-import { db } from '@/lib/db';
-import { getSessionUser } from '@/lib/auth';
+import { NextRequest, NextResponse } from "next/server";
+import clientPromise from "@/lib/mongodb";
+import { getSessionUser } from "@/lib/auth";
+import { ObjectId } from "mongodb";
 
-export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+// ============================================================
+// POST /api/study-groups/[id]/members — গ্রুপে জয়েন করা
+// ============================================================
+export async function POST(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
   try {
     const sessionUser = await getSessionUser();
     if (!sessionUser) {
-      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json(
+        { success: false, error: "Unauthorized" },
+        { status: 401 },
+      );
     }
-    const userId = sessionUser.id;
 
     const { id } = await params;
+    if (!ObjectId.isValid(id))
+      return NextResponse.json(
+        { success: false, error: "Invalid ID" },
+        { status: 400 },
+      );
 
-    // Check if already a member
-    const existing = await db.studyGroupMember.findUnique({
-      where: { groupId_userId: { groupId: id, userId } },
-    });
+    const client = await clientPromise;
+    const db = client.db();
+    const groupId = new ObjectId(id);
+    const userId = new ObjectId(sessionUser.id);
 
+    // ১. অলরেডি মেম্বার কিনা চেক
+    const existing = await db
+      .collection("groupMembers")
+      .findOne({ groupId, userId });
     if (existing) {
-      return NextResponse.json({ success: false, error: 'Already a member' }, { status: 400 });
+      return NextResponse.json(
+        { success: false, error: "Already a member" },
+        { status: 400 },
+      );
     }
 
-    // Check if group is full
-    const group = await db.studyGroup.findUnique({
-      where: { id },
-      include: { _count: { select: { members: true } } },
-    });
+    // ২. গ্রুপ ফুল কিনা চেক
+    const group = await db.collection("studyGroups").findOne({ _id: groupId });
+    const currentCount = await db
+      .collection("groupMembers")
+      .countDocuments({ groupId });
 
-    if (group && group._count.members >= group.maxMembers) {
-      return NextResponse.json({ success: false, error: 'Group is full' }, { status: 400 });
+    if (group && currentCount >= (group.maxMembers || 10)) {
+      return NextResponse.json(
+        { success: false, error: "Group is full" },
+        { status: 400 },
+      );
     }
 
-    const member = await db.studyGroupMember.create({
-      data: { groupId: id, userId },
+    // ৩. মেম্বার ইনসার্ট
+    const result = await db.collection("groupMembers").insertOne({
+      groupId,
+      userId,
+      role: "member",
+      createdAt: new Date(),
     });
 
-    return NextResponse.json({ success: true, data: member });
+    return NextResponse.json({
+      success: true,
+      data: { id: result.insertedId, groupId, userId },
+    });
   } catch (error) {
-    return NextResponse.json({ success: false, error: 'Failed to join group' }, { status: 500 });
+    console.error("Join Group Error:", error);
+    return NextResponse.json(
+      { success: false, error: "Failed to join group" },
+      { status: 500 },
+    );
   }
 }
 
-export async function DELETE(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+// ============================================================
+// DELETE /api/study-groups/[id]/members — গ্রুপ থেকে বের হওয়া
+// ============================================================
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
   try {
     const sessionUser = await getSessionUser();
     if (!sessionUser) {
-      return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 });
+      return NextResponse.json(
+        { success: false, error: "Unauthorized" },
+        { status: 401 },
+      );
     }
-    const userId = sessionUser.id;
 
     const { id } = await params;
+    const groupId = new ObjectId(id);
+    const userId = new ObjectId(sessionUser.id);
 
-    const existing = await db.studyGroupMember.findUnique({
-      where: { groupId_userId: { groupId: id, userId } },
-    });
+    const client = await clientPromise;
+    const db = client.db();
 
+    const existing = await db
+      .collection("groupMembers")
+      .findOne({ groupId, userId });
     if (!existing) {
-      return NextResponse.json({ success: false, error: 'Not a member' }, { status: 400 });
+      return NextResponse.json(
+        { success: false, error: "Not a member" },
+        { status: 400 },
+      );
     }
 
-    // Don't allow the creator/admin to leave (they would need to delete the group)
-    if (existing.role === 'admin') {
-      // Check if they're the only admin
-      const adminCount = await db.studyGroupMember.count({
-        where: { groupId: id, role: 'admin' },
-      });
+    // অ্যাডমিন চেক
+    if (existing.role === "admin") {
+      const adminCount = await db
+        .collection("groupMembers")
+        .countDocuments({ groupId, role: "admin" });
       if (adminCount <= 1) {
-        return NextResponse.json({ success: false, error: 'একমাত্র অ্যাডমিন গ্রুপ ছেড়ে দিতে পারবেন না। প্রথমে অন্য কাউকে অ্যাডমিন করুন অথবা গ্রুপ মুছে ফেলুন।' }, { status: 400 });
+        return NextResponse.json(
+          {
+            success: false,
+            error:
+              "একমাত্র অ্যাডমিন গ্রুপ ছেড়ে দিতে পারবেন না। প্রথমে অন্য কাউকে অ্যাডমিন করুন অথবা গ্রুপ মুছে ফেলুন।",
+          },
+          { status: 400 },
+        );
       }
     }
 
-    await db.studyGroupMember.delete({
-      where: { id: existing.id },
-    });
+    await db.collection("groupMembers").deleteOne({ _id: existing._id });
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    return NextResponse.json({ success: false, error: 'Failed to leave group' }, { status: 500 });
+    console.error("Leave Group Error:", error);
+    return NextResponse.json(
+      { success: false, error: "Failed to leave group" },
+      { status: 500 },
+    );
   }
 }

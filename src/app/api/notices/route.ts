@@ -1,56 +1,100 @@
-import { db } from '@/lib/db';
-import { NextResponse } from 'next/server';
-import { Prisma } from '@prisma/client';
-import { getSessionUser } from '@/lib/auth';
+import clientPromise from "@/lib/mongodb";
+import { NextResponse } from "next/server";
+import { getSessionUser } from "@/lib/auth";
 
+// ============================================================
+// GET /api/notices — নোটিশের তালিকা লোড করা (pinned নোটিশগুলো আগে সর্ট করে)
+// ============================================================
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const showAll = searchParams.get('all') === 'true';
-    const type = searchParams.get('type');
-    const priority = searchParams.get('priority');
-    const category = searchParams.get('category');
+    const showAll = searchParams.get("all") === "true";
+    const type = searchParams.get("type");
+    const priority = searchParams.get("priority");
+    const category = searchParams.get("category");
 
-    const where: Prisma.NoticeWhereInput = {};
-    if (!showAll) where.isActive = true;
-    if (type) where.type = type;
-    if (priority) where.priority = priority;
-    if (category) where.category = category;
+    const client = await clientPromise;
+    const db = client.db();
 
-    const notices = await db.notice.findMany({
-      where,
-      orderBy: { createdAt: 'desc' },
-    });
+    // ১. ফিল্টারিং কন্ডিশন তৈরি করা
+    const matchStage: any = {};
+    if (!showAll) {
+      matchStage.isActive = true;
+    }
+    if (type) {
+      matchStage.type = type;
+    }
+    if (priority) {
+      matchStage.priority = priority;
+    }
+    if (category) {
+      matchStage.category = category;
+    }
 
-    // Sort pinned notices first
-    const sorted = notices.sort((a, b) => {
-      if (a.pinned && !b.pinned) return -1;
-      if (!a.pinned && b.pinned) return 1;
-      return 0;
-    });
+    // ২. মঙ্গোডিবি থেকে ডেটা কুয়েরি ও সর্ট করা
+    // এখানে ইন-মেমোরি সর্ট করার চেয়ে ডেটাবেজ লেভেলেই সর্ট করা অনেক বেশি অপ্টিমাইজড।
+    // MongoDB-তে boolean সর্টিং করার সময় -1 দিলে true সবার আগে আসে।
+    const notices = await db
+      .collection("Notice")
+      .find(matchStage)
+      .sort({
+        pinned: -1, // Pinned নোটিশগুলো আগে দেখাবে
+        createdAt: -1, // একই ক্যাটাগরিতে নতুন নোটিশগুলো আগে থাকবে
+      })
+      .toArray();
 
-    return NextResponse.json({ success: true, data: sorted });
+    // ৩. রেসপন্স ডাটা ফরম্যাট করা (id কনভার্সন সহ)
+    const formattedNotices = notices.map((notice: any) => ({
+      id: notice._id.toString(),
+      title: notice.title,
+      titleBn: notice.titleBn,
+      content: notice.content,
+      type: notice.type,
+      priority: notice.priority,
+      category: notice.category,
+      pinned: !!notice.pinned,
+      isActive: !!notice.isActive,
+      createdAt: notice.createdAt,
+      updatedAt: notice.updatedAt,
+    }));
+
+    return NextResponse.json({ success: true, data: formattedNotices });
   } catch (error) {
-    console.error('Error fetching notices:', error);
+    console.error("Error fetching notices:", error);
     return NextResponse.json(
-      { success: false, error: 'নোটিশ লোড করতে সমস্যা হয়েছে' },
-      { status: 500 }
+      { success: false, error: "নোটিশ লোড করতে সমস্যা হয়েছে" },
+      { status: 500 },
     );
   }
 }
 
+// ============================================================
+// POST /api/notices — নতুন নোটিশ তৈরি করা (admin/teacher)
+// ============================================================
 export async function POST(request: Request) {
   try {
     const sessionUser = await getSessionUser();
-    if (!sessionUser || (sessionUser.role !== 'admin' && sessionUser.role !== 'teacher')) {
+    if (
+      !sessionUser ||
+      (sessionUser.role !== "admin" && sessionUser.role !== "teacher")
+    ) {
       return NextResponse.json(
-        { success: false, error: 'অননুমোদিত অ্যাক্সেস' },
-        { status: 403 }
+        { success: false, error: "অননুমোদিত অ্যাক্সেস" },
+        { status: 403 },
       );
     }
 
     const body = await request.json();
-    const { title, titleBn, content, type, priority, category, pinned, isActive } = body as {
+    const {
+      title,
+      titleBn,
+      content,
+      type,
+      priority,
+      category,
+      pinned,
+      isActive,
+    } = body as {
       title: string;
       titleBn: string;
       content: string;
@@ -63,30 +107,43 @@ export async function POST(request: Request) {
 
     if (!title || !titleBn || !content) {
       return NextResponse.json(
-        { success: false, error: 'শিরোনাম ও বিষয়বস্তু প্রয়োজন' },
-        { status: 400 }
+        { success: false, error: "শিরোনাম ও বিষয়বস্তু প্রয়োজন" },
+        { status: 400 },
       );
     }
 
-    const notice = await db.notice.create({
-      data: {
-        title,
-        titleBn,
-        content,
-        type: type || 'general',
-        priority: priority || 'সাধারণ',
-        category: category || 'সাধারণ',
-        pinned: pinned ?? false,
-        isActive: isActive !== undefined ? isActive : true,
-      },
-    });
+    const client = await clientPromise;
+    const db = client.db();
 
-    return NextResponse.json({ success: true, data: notice });
+    // ১. নতুন নোটিশ অবজেক্ট তৈরি
+    const newNotice = {
+      title,
+      titleBn,
+      content,
+      type: type || "general",
+      priority: priority || "সাধারণ",
+      category: category || "সাধারণ",
+      pinned: pinned ?? false,
+      isActive: isActive !== undefined ? isActive : true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    // ২. মঙ্গোডিবি-তে ডেটা ইনসার্ট করা
+    const result = await db.collection("Notice").insertOne(newNotice);
+
+    // ৩. প্রিজমা ফরমেট অনুযায়ী রেসপন্স পাঠানো
+    const noticeWithId = {
+      id: result.insertedId.toString(),
+      ...newNotice,
+    };
+
+    return NextResponse.json({ success: true, data: noticeWithId });
   } catch (error) {
-    console.error('Error creating notice:', error);
+    console.error("Error creating notice:", error);
     return NextResponse.json(
-      { success: false, error: 'নোটিশ তৈরি করতে সমস্যা হয়েছে' },
-      { status: 500 }
+      { success: false, error: "নোটিশ তৈরি করতে সমস্যা হয়েছে" },
+      { status: 500 },
     );
   }
 }

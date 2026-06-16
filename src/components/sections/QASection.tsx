@@ -1,48 +1,123 @@
-'use client';
+"use client";
 
-import React, { useEffect, useState, useMemo, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useEffect, useState, useMemo, useCallback } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import {
-  MessageCircleQuestion, Send, CheckCircle2, MessageCircle, Search,
-  ThumbsUp, ThumbsDown, Bookmark, BookmarkCheck, Share2, Filter,
-  ArrowUpDown, Eye, Clock, Tag, UserCircle, Shield,
-  X, Sparkles, HelpCircle, RefreshCw, AlertCircle
-} from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Separator } from '@/components/ui/separator';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
-import { Skeleton } from '@/components/ui/skeleton';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Switch } from '@/components/ui/switch';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
-import { useStudyHub } from '@/components/layout/StudyHubProvider';
-import { toast } from 'sonner';
+  MessageCircleQuestion,
+  Send,
+  CheckCircle2,
+  MessageCircle,
+  Search,
+  ThumbsUp,
+  ThumbsDown,
+  Bookmark,
+  BookmarkCheck,
+  Share2,
+  Filter,
+  ArrowUpDown,
+  Eye,
+  Clock,
+  Tag,
+  UserCircle,
+  Shield,
+  X,
+  Sparkles,
+  HelpCircle,
+  RefreshCw,
+  AlertCircle,
+} from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { useStudyHub } from "@/components/layout/StudyHubProvider";
+import { toast } from "sonner";
 
 // Helper: convert digits to Bengali numerals
 function toBengaliNum(num: number): string {
-  const bengaliDigits = ['০', '১', '২', '৩', '৪', '৫', '৬', '৭', '৮', '৯'];
+  const bengaliDigits = ["০", "১", "২", "৩", "৪", "৫", "৬", "৭", "৮", "৯"];
   return String(num).replace(/[0-9]/g, (d) => bengaliDigits[parseInt(d)]);
 }
 
 // Subject colors for tags
-const subjectTagColors: Record<string, { bg: string; text: string; border: string }> = {
-  'গণিত': { bg: 'bg-emerald-500/10', text: 'text-emerald-600 dark:text-emerald-400', border: 'border-emerald-500/20' },
-  'পদার্থবিজ্ঞান': { bg: 'bg-amber-500/10', text: 'text-amber-600 dark:text-amber-400', border: 'border-amber-500/20' },
-  'রসায়ন': { bg: 'bg-rose-500/10', text: 'text-rose-600 dark:text-rose-400', border: 'border-rose-500/20' },
-  'জীববিজ্ঞান': { bg: 'bg-lime-500/10', text: 'text-lime-600 dark:text-lime-400', border: 'border-lime-500/20' },
-  'ইংরেজি': { bg: 'bg-teal-500/10', text: 'text-teal-600 dark:text-teal-400', border: 'border-teal-500/20' },
-  'বাংলা': { bg: 'bg-orange-500/10', text: 'text-orange-600 dark:text-orange-400', border: 'border-orange-500/20' },
-  'ইতিহাস': { bg: 'bg-purple-500/10', text: 'text-purple-600 dark:text-purple-400', border: 'border-purple-500/20' },
-  'ভূগোল': { bg: 'bg-cyan-500/10', text: 'text-cyan-600 dark:text-cyan-400', border: 'border-cyan-500/20' },
+const subjectTagColors: Record<
+  string,
+  { bg: string; text: string; border: string }
+> = {
+  গণিত: {
+    bg: "bg-emerald-500/10",
+    text: "text-emerald-600 dark:text-emerald-400",
+    border: "border-emerald-500/20",
+  },
+  পদার্থবিজ্ঞান: {
+    bg: "bg-amber-500/10",
+    text: "text-amber-600 dark:text-amber-400",
+    border: "border-amber-500/20",
+  },
+  রসায়ন: {
+    bg: "bg-rose-500/10",
+    text: "text-rose-600 dark:text-rose-400",
+    border: "border-rose-500/20",
+  },
+  জীববিজ্ঞান: {
+    bg: "bg-lime-500/10",
+    text: "text-lime-600 dark:text-lime-400",
+    border: "border-lime-500/20",
+  },
+  ইংরেজি: {
+    bg: "bg-teal-500/10",
+    text: "text-teal-600 dark:text-teal-400",
+    border: "border-teal-500/20",
+  },
+  বাংলা: {
+    bg: "bg-orange-500/10",
+    text: "text-orange-600 dark:text-orange-400",
+    border: "border-orange-500/20",
+  },
+  ইতিহাস: {
+    bg: "bg-purple-500/10",
+    text: "text-purple-600 dark:text-purple-400",
+    border: "border-purple-500/20",
+  },
+  ভূগোল: {
+    bg: "bg-cyan-500/10",
+    text: "text-cyan-600 dark:text-cyan-400",
+    border: "border-cyan-500/20",
+  },
 };
 
-const defaultTagColor = { bg: 'bg-emerald-500/10', text: 'text-emerald-600 dark:text-emerald-400', border: 'border-emerald-500/20' };
+const defaultTagColor = {
+  bg: "bg-emerald-500/10",
+  text: "text-emerald-600 dark:text-emerald-400",
+  border: "border-emerald-500/20",
+};
 
 function getSubjectTagColor(subject: string) {
   return subjectTagColors[subject] || defaultTagColor;
@@ -58,13 +133,13 @@ function timeAgo(dateStr: string): string {
     const diffHours = Math.floor(diffMs / 3600000);
     const diffDays = Math.floor(diffMs / 86400000);
 
-    if (diffMins < 1) return 'এইমাত্র';
+    if (diffMins < 1) return "এইমাত্র";
     if (diffMins < 60) return `${toBengaliNum(diffMins)} মিনিট আগে`;
     if (diffHours < 24) return `${toBengaliNum(diffHours)} ঘন্টা আগে`;
     if (diffDays < 7) return `${toBengaliNum(diffDays)} দিন আগে`;
     return `${toBengaliNum(diffDays)} দিন আগে`;
   } catch {
-    return 'সর্বশেষ';
+    return "সর্বশেষ";
   }
 }
 
@@ -109,62 +184,81 @@ interface VoteState {
 export default function QASection() {
   const [questions, setQuestions] = useState<QAQuestionUI[]>([]);
   const [subjects, setSubjects] = useState<SubjectOption[]>([]);
-  const [selectedQuestion, setSelectedQuestion] = useState<QAQuestionUI | null>(null);
-  const [answerText, setAnswerText] = useState('');
-  const [questionTitle, setQuestionTitle] = useState('');
-  const [questionContent, setQuestionContent] = useState('');
-  const [questionTags, setQuestionTags] = useState('');
-  const [questionSubject, setQuestionSubject] = useState('');
+  const [selectedQuestion, setSelectedQuestion] = useState<QAQuestionUI | null>(
+    null,
+  );
+  const [answerText, setAnswerText] = useState("");
+  const [questionTitle, setQuestionTitle] = useState("");
+  const [questionContent, setQuestionContent] = useState("");
+  const [questionTags, setQuestionTags] = useState("");
+  const [questionSubject, setQuestionSubject] = useState("");
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [askOpen, setAskOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState<string | null>(null);
-  const [sortBy, setSortBy] = useState<'recent' | 'popular' | 'unanswered'>('recent');
-  const [subjectFilter, setSubjectFilter] = useState<string>('');
+  const [sortBy, setSortBy] = useState<"recent" | "popular" | "unanswered">(
+    "recent",
+  );
+  const [subjectFilter, setSubjectFilter] = useState<string>("");
   const { user } = useStudyHub();
 
   // Local storage state for votes, bookmarks
   const [votes, setVotes] = useState<VoteState>(() => {
-    if (typeof window === 'undefined') return { questions: {}, answers: {} };
+    if (typeof window === "undefined") return { questions: {}, answers: {} };
     try {
-      const saved = localStorage.getItem('studyhub_qa_votes');
+      const saved = localStorage.getItem("studyhub_qa_votes");
       return saved ? JSON.parse(saved) : { questions: {}, answers: {} };
-    } catch { return { questions: {}, answers: {} }; }
+    } catch {
+      return { questions: {}, answers: {} };
+    }
   });
 
   const [bookmarks, setBookmarks] = useState<Set<string>>(() => {
-    if (typeof window === 'undefined') return new Set();
+    if (typeof window === "undefined") return new Set();
     try {
-      const saved = localStorage.getItem('studyhub_qa_bookmarks');
+      const saved = localStorage.getItem("studyhub_qa_bookmarks");
       return saved ? new Set(JSON.parse(saved)) : new Set();
-    } catch { return new Set(); }
+    } catch {
+      return new Set();
+    }
   });
 
   // Save to localStorage
   useEffect(() => {
-    try { localStorage.setItem('studyhub_qa_votes', JSON.stringify(votes)); } catch {}
+    try {
+      localStorage.setItem("studyhub_qa_votes", JSON.stringify(votes));
+    } catch {}
   }, [votes]);
 
   useEffect(() => {
-    try { localStorage.setItem('studyhub_qa_bookmarks', JSON.stringify([...bookmarks])); } catch {}
+    try {
+      localStorage.setItem(
+        "studyhub_qa_bookmarks",
+        JSON.stringify([...bookmarks]),
+      );
+    } catch {}
   }, [bookmarks]);
 
   // Fetch subjects from API
   useEffect(() => {
-    fetch('/api/subjects')
-      .then(res => res.json())
-      .then(data => {
+    fetch("/api/subjects")
+      .then((res) => res.json())
+      .then((data) => {
         if (data.success && Array.isArray(data.data)) {
-          setSubjects(data.data.map((s: { id: string; name: string; nameBn: string }) => ({
-            id: s.id,
-            name: s.name,
-            nameBn: s.nameBn,
-          })));
+          setSubjects(
+            data.data.map(
+              (s: { id: string; name: string; nameBn: string }) => ({
+                id: s.id,
+                name: s.name,
+                nameBn: s.nameBn,
+              }),
+            ),
+          );
         }
       })
       .catch(() => {});
@@ -176,11 +270,14 @@ export default function QASection() {
     setError(null);
     try {
       const params = new URLSearchParams();
-      if (subjectFilter && subjectFilter !== 'all') params.set('subjectId', subjectFilter);
+      if (subjectFilter && subjectFilter !== "all")
+        params.set("subjectId", subjectFilter);
       const res = await fetch(`/api/qa?${params.toString()}`);
       const data = await res.json();
       if (data.success) {
-        const qList = Array.isArray(data.data) ? data.data : (data.data.questions || []);
+        const qList = Array.isArray(data.data)
+          ? data.data
+          : data.data.questions || [];
         const enhanced = qList.map((q: QAQuestionUI) => ({
           ...q,
           tags: q.tags || (q.subject?.nameBn ? [q.subject.nameBn] : []),
@@ -188,10 +285,10 @@ export default function QASection() {
         }));
         setQuestions(enhanced);
       } else {
-        setError(data.error || 'প্রশ্ন লোড করতে সমস্যা হয়েছে');
+        setError(data.error || "প্রশ্ন লোড করতে সমস্যা হয়েছে");
       }
     } catch {
-      setError('নেটওয়ার্ক সমস্যা হয়েছে। আবার চেষ্টা করুন।');
+      setError("নেটওয়ার্ক সমস্যা হয়েছে। আবার চেষ্টা করুন।");
     } finally {
       setLoading(false);
     }
@@ -219,10 +316,10 @@ export default function QASection() {
           })),
         });
       } else {
-        setDetailError(data.error || 'প্রশ্ন লোড করতে সমস্যা হয়েছে');
+        setDetailError(data.error || "প্রশ্ন লোড করতে সমস্যা হয়েছে");
       }
     } catch {
-      setDetailError('নেটওয়ার্ক সমস্যা হয়েছে। আবার চেষ্টা করুন।');
+      setDetailError("নেটওয়ার্ক সমস্যা হয়েছে। আবার চেষ্টা করুন।");
     } finally {
       setDetailLoading(false);
     }
@@ -230,18 +327,18 @@ export default function QASection() {
 
   const handleAskQuestion = async () => {
     if (!user) {
-      toast.error('প্রশ্ন করতে লগইন করুন');
+      toast.error("প্রশ্ন করতে লগইন করুন");
       return;
     }
     if (!questionTitle.trim() || !questionContent.trim()) {
-      toast.error('শিরোনাম ও বিবরণ দিন');
+      toast.error("শিরোনাম ও বিবরণ দিন");
       return;
     }
     setIsSubmitting(true);
     try {
-      const res = await fetch('/api/qa', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const res = await fetch("/api/qa", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           userId: user.id,
           subjectId: questionSubject || undefined,
@@ -251,21 +348,21 @@ export default function QASection() {
       });
       const data = await res.json();
       if (data.success) {
-        toast.success('প্রশ্ন পোস্ট হয়েছে!');
+        toast.success("প্রশ্ন পোস্ট হয়েছে!");
         setAskOpen(false);
-        setQuestionTitle('');
-        setQuestionContent('');
-        setQuestionTags('');
-        setQuestionSubject('');
+        setQuestionTitle("");
+        setQuestionContent("");
+        setQuestionTags("");
+        setQuestionSubject("");
         setIsAnonymous(false);
         setShowPreview(false);
         // Refresh questions list
         await fetchQuestions();
       } else {
-        toast.error(data.error || 'প্রশ্ন পোস্ট করতে সমস্যা হয়েছে');
+        toast.error(data.error || "প্রশ্ন পোস্ট করতে সমস্যা হয়েছে");
       }
     } catch {
-      toast.error('নেটওয়ার্ক সমস্যা। আবার চেষ্টা করুন।');
+      toast.error("নেটওয়ার্ক সমস্যা। আবার চেষ্টা করুন।");
     } finally {
       setIsSubmitting(false);
     }
@@ -274,14 +371,14 @@ export default function QASection() {
   const handlePostAnswer = async () => {
     if (!user || !selectedQuestion) return;
     if (!answerText.trim()) {
-      toast.error('উত্তর লিখুন');
+      toast.error("উত্তর লিখুন");
       return;
     }
     setIsSubmitting(true);
     try {
       const res = await fetch(`/api/qa/${selectedQuestion.id}/answer`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           userId: user.id,
           content: answerText,
@@ -289,14 +386,14 @@ export default function QASection() {
       });
       const data = await res.json();
       if (data.success) {
-        toast.success('উত্তর পোস্ট হয়েছে!');
-        setAnswerText('');
+        toast.success("উত্তর পোস্ট হয়েছে!");
+        setAnswerText("");
         fetchQuestionDetail(selectedQuestion.id);
       } else {
-        toast.error(data.error || 'উত্তর পোস্ট করতে সমস্যা');
+        toast.error(data.error || "উত্তর পোস্ট করতে সমস্যা");
       }
     } catch {
-      toast.error('নেটওয়ার্ক সমস্যা। আবার চেষ্টা করুন।');
+      toast.error("নেটওয়ার্ক সমস্যা। আবার চেষ্টা করুন।");
     } finally {
       setIsSubmitting(false);
     }
@@ -308,67 +405,90 @@ export default function QASection() {
     const newVote = current === direction ? 0 : direction;
 
     // Optimistic update for local vote state
-    setVotes(prev => ({ ...prev, questions: { ...prev.questions, [questionId]: newVote } }));
+    setVotes((prev) => ({
+      ...prev,
+      questions: { ...prev.questions, [questionId]: newVote },
+    }));
 
     // Optimistic upvote count update
     const diff = newVote - current;
-    setQuestions(prev => prev.map(q =>
-      q.id === questionId ? { ...q, upvotes: q.upvotes + diff } : q
-    ));
+    setQuestions((prev) =>
+      prev.map((q) =>
+        q.id === questionId ? { ...q, upvotes: q.upvotes + diff } : q,
+      ),
+    );
     if (selectedQuestion?.id === questionId) {
-      setSelectedQuestion(prev => prev ? { ...prev, upvotes: prev.upvotes + diff } : null);
+      setSelectedQuestion((prev) =>
+        prev ? { ...prev, upvotes: prev.upvotes + diff } : null,
+      );
     }
 
     // Call backend API
     try {
       if (direction === 1 && newVote === 1) {
         await fetch(`/api/qa/${questionId}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'upvote' }),
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "upvote" }),
         });
       } else if (direction === -1 && newVote === -1) {
         await fetch(`/api/qa/${questionId}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: 'downvote' }),
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ action: "downvote" }),
         });
       } else if (newVote === 0) {
         // Undo: apply opposite
         await fetch(`/api/qa/${questionId}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ action: current === 1 ? 'downvote' : 'upvote' }),
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            action: current === 1 ? "downvote" : "upvote",
+          }),
         });
       }
     } catch {
-      toast.error('ভোট দিতে সমস্যা হয়েছে');
+      toast.error("ভোট দিতে সমস্যা হয়েছে");
       // Revert optimistic update
-      setVotes(prev => ({ ...prev, questions: { ...prev.questions, [questionId]: current } }));
-      setQuestions(prev => prev.map(q =>
-        q.id === questionId ? { ...q, upvotes: q.upvotes - diff } : q
-      ));
+      setVotes((prev) => ({
+        ...prev,
+        questions: { ...prev.questions, [questionId]: current },
+      }));
+      setQuestions((prev) =>
+        prev.map((q) =>
+          q.id === questionId ? { ...q, upvotes: q.upvotes - diff } : q,
+        ),
+      );
       if (selectedQuestion?.id === questionId) {
-        setSelectedQuestion(prev => prev ? { ...prev, upvotes: prev.upvotes - diff } : null);
+        setSelectedQuestion((prev) =>
+          prev ? { ...prev, upvotes: prev.upvotes - diff } : null,
+        );
       }
     }
   };
 
-  const handleVoteAnswer = async (questionId: string, answerId: string, direction: 1 | -1) => {
+  const handleVoteAnswer = async (
+    questionId: string,
+    answerId: string,
+    direction: 1 | -1,
+  ) => {
     const current = votes.answers[answerId] || 0;
     const newVote = current === direction ? 0 : direction;
 
     // Optimistic update
-    setVotes(prev => ({ ...prev, answers: { ...prev.answers, [answerId]: newVote } }));
+    setVotes((prev) => ({
+      ...prev,
+      answers: { ...prev.answers, [answerId]: newVote },
+    }));
 
     const diff = newVote - current;
     if (selectedQuestion) {
-      setSelectedQuestion(prev => {
+      setSelectedQuestion((prev) => {
         if (!prev) return null;
         return {
           ...prev,
-          answers: prev.answers.map(a =>
-            a.id === answerId ? { ...a, upvotes: a.upvotes + diff } : a
+          answers: prev.answers.map((a) =>
+            a.id === answerId ? { ...a, upvotes: a.upvotes + diff } : a,
           ),
         };
       });
@@ -377,34 +497,40 @@ export default function QASection() {
     try {
       if (direction === 1 && newVote === 1) {
         await fetch(`/api/qa/${questionId}/answer`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ answerId, action: 'upvote' }),
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ answerId, action: "upvote" }),
         });
       } else if (direction === -1 && newVote === -1) {
         await fetch(`/api/qa/${questionId}/answer`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ answerId, action: 'downvote' }),
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ answerId, action: "downvote" }),
         });
       } else if (newVote === 0) {
         await fetch(`/api/qa/${questionId}/answer`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ answerId, action: current === 1 ? 'downvote' : 'upvote' }),
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            answerId,
+            action: current === 1 ? "downvote" : "upvote",
+          }),
         });
       }
     } catch {
-      toast.error('ভোট দিতে সমস্যা হয়েছে');
+      toast.error("ভোট দিতে সমস্যা হয়েছে");
       // Revert
-      setVotes(prev => ({ ...prev, answers: { ...prev.answers, [answerId]: current } }));
+      setVotes((prev) => ({
+        ...prev,
+        answers: { ...prev.answers, [answerId]: current },
+      }));
       if (selectedQuestion) {
-        setSelectedQuestion(prev => {
+        setSelectedQuestion((prev) => {
           if (!prev) return null;
           return {
             ...prev,
-            answers: prev.answers.map(a =>
-              a.id === answerId ? { ...a, upvotes: a.upvotes - diff } : a
+            answers: prev.answers.map((a) =>
+              a.id === answerId ? { ...a, upvotes: a.upvotes - diff } : a,
             ),
           };
         });
@@ -414,7 +540,7 @@ export default function QASection() {
 
   // Bookmark handler
   const handleBookmark = (questionId: string) => {
-    setBookmarks(prev => {
+    setBookmarks((prev) => {
       const n = new Set(prev);
       if (n.has(questionId)) n.delete(questionId);
       else n.add(questionId);
@@ -427,11 +553,11 @@ export default function QASection() {
     const url = `${window.location.origin}?section=qa&q=${questionId}`;
     if (navigator.share) {
       try {
-        await navigator.share({ title: 'স্টাডি হাব - প্রশ্ন', url });
+        await navigator.share({ title: "স্টাডি হাব - প্রশ্ন", url });
       } catch {}
     } else {
       await navigator.clipboard.writeText(url);
-      toast.success('লিংক কপি হয়েছে!');
+      toast.success("লিংক কপি হয়েছে!");
     }
   };
 
@@ -440,18 +566,20 @@ export default function QASection() {
     if (!selectedQuestion) return;
     try {
       const res = await fetch(`/api/qa/${selectedQuestion.id}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'accept-answer', answerId }),
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "accept-answer", answerId }),
       });
       const data = await res.json();
       if (data.success) {
-        toast.success('উত্তর গৃহীত হয়েছে!');
+        toast.success("উত্তর গৃহীত হয়েছে!");
         // Update local state from API response
         const updatedQ = data.data;
         setSelectedQuestion({
           ...updatedQ,
-          tags: updatedQ.tags || (updatedQ.subject?.nameBn ? [updatedQ.subject.nameBn] : []),
+          tags:
+            updatedQ.tags ||
+            (updatedQ.subject?.nameBn ? [updatedQ.subject.nameBn] : []),
           upvotes: updatedQ.upvotes ?? 0,
           answers: (updatedQ.answers || []).map((a: QAAnswerUI) => ({
             ...a,
@@ -459,14 +587,16 @@ export default function QASection() {
           })),
         });
         // Also update the question in the list
-        setQuestions(prev => prev.map(q =>
-          q.id === selectedQuestion.id ? { ...q, isSolved: true } : q
-        ));
+        setQuestions((prev) =>
+          prev.map((q) =>
+            q.id === selectedQuestion.id ? { ...q, isSolved: true } : q,
+          ),
+        );
       } else {
-        toast.error(data.error || 'উত্তর গ্রহণ করতে সমস্যা হয়েছে');
+        toast.error(data.error || "উত্তর গ্রহণ করতে সমস্যা হয়েছে");
       }
     } catch {
-      toast.error('নেটওয়ার্ক সমস্যা। আবার চেষ্টা করুন।');
+      toast.error("নেটওয়ার্ক সমস্যা। আবার চেষ্টা করুন।");
     }
   };
 
@@ -478,7 +608,9 @@ export default function QASection() {
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       result = result.filter(
-        item => item.title.toLowerCase().includes(q) || item.content.toLowerCase().includes(q)
+        (item) =>
+          item.title.toLowerCase().includes(q) ||
+          item.content.toLowerCase().includes(q),
       );
     }
 
@@ -487,15 +619,23 @@ export default function QASection() {
 
     // Sort
     switch (sortBy) {
-      case 'popular':
+      case "popular":
         result.sort((a, b) => b.upvotes - a.upvotes);
         break;
-      case 'unanswered':
-        result = result.filter(item => !item.answers || item.answers.length === 0 || item._count?.answers === 0);
+      case "unanswered":
+        result = result.filter(
+          (item) =>
+            !item.answers ||
+            item.answers.length === 0 ||
+            item._count?.answers === 0,
+        );
         break;
-      case 'recent':
+      case "recent":
       default:
-        result.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+        result.sort(
+          (a, b) =>
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+        );
         break;
     }
 
@@ -505,7 +645,12 @@ export default function QASection() {
   // Stats calculation
   const stats = useMemo(() => {
     const total = questions.length;
-    const answered = questions.filter(q => q.isSolved || (q.answers && q.answers.length > 0) || (q._count && q._count.answers > 0)).length;
+    const answered = questions.filter(
+      (q) =>
+        q.isSolved ||
+        (q.answers && q.answers.length > 0) ||
+        (q._count && q._count.answers > 0),
+    ).length;
     const unanswered = total - answered;
     const rate = total > 0 ? Math.round((answered / total) * 100) : 0;
     return { total, answered, unanswered, rate };
@@ -542,7 +687,10 @@ export default function QASection() {
 
           <Dialog open={askOpen} onOpenChange={setAskOpen}>
             <DialogTrigger asChild>
-              <Button className="gap-2 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 shadow-md shadow-emerald-500/20" disabled={!user}>
+              <Button
+                className="gap-2 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 shadow-md shadow-emerald-500/20"
+                disabled={!user}
+              >
                 <MessageCircleQuestion className="w-4 h-4" />
                 প্রশ্ন করুন
               </Button>
@@ -553,19 +701,26 @@ export default function QASection() {
                   <Sparkles className="w-5 h-5 text-primary" />
                   নতুন প্রশ্ন করুন
                 </DialogTitle>
-                <DialogDescription>আপনার পড়াশোনা বিষয়ক প্রশ্ন লিখুন</DialogDescription>
+                <DialogDescription>
+                  আপনার পড়াশোনা বিষয়ক প্রশ্ন লিখুন
+                </DialogDescription>
               </DialogHeader>
               <div className="space-y-4 py-4">
                 {/* Subject selector - fetched from API */}
                 <div className="space-y-2">
                   <Label>বিষয়</Label>
-                  <Select value={questionSubject} onValueChange={setQuestionSubject}>
+                  <Select
+                    value={questionSubject}
+                    onValueChange={setQuestionSubject}
+                  >
                     <SelectTrigger className="w-full">
                       <SelectValue placeholder="বিষয় নির্বাচন করুন" />
                     </SelectTrigger>
                     <SelectContent>
-                      {subjects.map(s => (
-                        <SelectItem key={s.id} value={s.id}>{s.nameBn}</SelectItem>
+                      {subjects.map((s) => (
+                        <SelectItem key={s.id} value={s.id}>
+                          {s.nameBn}
+                        </SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
@@ -605,11 +760,18 @@ export default function QASection() {
                   />
                   {questionTags && (
                     <div className="flex flex-wrap gap-1.5 mt-1.5">
-                      {questionTags.split(',').map((tag, i) => tag.trim() && (
-                        <Badge key={i} variant="secondary" className="text-xs">
-                          {tag.trim()}
-                        </Badge>
-                      ))}
+                      {questionTags.split(",").map(
+                        (tag, i) =>
+                          tag.trim() && (
+                            <Badge
+                              key={i}
+                              variant="secondary"
+                              className="text-xs"
+                            >
+                              {tag.trim()}
+                            </Badge>
+                          ),
+                      )}
                     </div>
                   )}
                 </div>
@@ -620,10 +782,15 @@ export default function QASection() {
                     <UserCircle className="w-4 h-4 text-muted-foreground" />
                     <div>
                       <p className="text-sm font-medium">বেনামে প্রশ্ন করুন</p>
-                      <p className="text-xs text-muted-foreground">আপনার নাম প্রকাশ হবে না</p>
+                      <p className="text-xs text-muted-foreground">
+                        আপনার নাম প্রকাশ হবে না
+                      </p>
                     </div>
                   </div>
-                  <Switch checked={isAnonymous} onCheckedChange={setIsAnonymous} />
+                  <Switch
+                    checked={isAnonymous}
+                    onCheckedChange={setIsAnonymous}
+                  />
                 </div>
 
                 {/* Preview toggle */}
@@ -634,7 +801,7 @@ export default function QASection() {
                   onClick={() => setShowPreview(!showPreview)}
                 >
                   <Eye className="w-3.5 h-3.5" />
-                  {showPreview ? 'ফর্ম দেখুন' : 'প্রিভিউ দেখুন'}
+                  {showPreview ? "ফর্ম দেখুন" : "প্রিভিউ দেখুন"}
                 </Button>
 
                 {/* Preview */}
@@ -642,20 +809,31 @@ export default function QASection() {
                   {showPreview && (
                     <motion.div
                       initial={{ opacity: 0, height: 0 }}
-                      animate={{ opacity: 1, height: 'auto' }}
+                      animate={{ opacity: 1, height: "auto" }}
                       exit={{ opacity: 0, height: 0 }}
                     >
                       <Card className="border-dashed">
                         <CardContent className="p-4">
-                          <h4 className="font-semibold mb-2">{questionTitle || 'শিরোনাম লিখুন...'}</h4>
+                          <h4 className="font-semibold mb-2">
+                            {questionTitle || "শিরোনাম লিখুন..."}
+                          </h4>
                           <p className="text-sm text-muted-foreground whitespace-pre-wrap">
-                            {questionContent || 'বিবরণ লিখুন...'}
+                            {questionContent || "বিবরণ লিখুন..."}
                           </p>
                           {questionTags && (
                             <div className="flex flex-wrap gap-1.5 mt-2">
-                              {questionTags.split(',').map((tag, i) => tag.trim() && (
-                                <Badge key={i} variant="secondary" className="text-xs">{tag.trim()}</Badge>
-                              ))}
+                              {questionTags.split(",").map(
+                                (tag, i) =>
+                                  tag.trim() && (
+                                    <Badge
+                                      key={i}
+                                      variant="secondary"
+                                      className="text-xs"
+                                    >
+                                      {tag.trim()}
+                                    </Badge>
+                                  ),
+                              )}
                             </div>
                           )}
                           {isAnonymous && (
@@ -672,9 +850,13 @@ export default function QASection() {
                 <Button
                   className="w-full bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700"
                   onClick={handleAskQuestion}
-                  disabled={isSubmitting || !questionTitle.trim() || !questionContent.trim()}
+                  disabled={
+                    isSubmitting ||
+                    !questionTitle.trim() ||
+                    !questionContent.trim()
+                  }
                 >
-                  {isSubmitting ? 'পোস্ট হচ্ছে...' : 'প্রশ্ন পোস্ট করুন'}
+                  {isSubmitting ? "পোস্ট হচ্ছে..." : "প্রশ্ন পোস্ট করুন"}
                 </Button>
               </div>
             </DialogContent>
@@ -695,7 +877,13 @@ export default function QASection() {
               <HelpCircle className="w-4 h-4 text-emerald-600" />
             </div>
             <div>
-              <p className="text-lg font-bold">{loading ? <Skeleton className="h-5 w-8" /> : toBengaliNum(stats.total)}</p>
+              <div className="text-lg font-bold">
+                {loading ? (
+                  <Skeleton className="h-5 w-8" />
+                ) : (
+                  toBengaliNum(stats.total)
+                )}
+              </div>
               <p className="text-[10px] text-muted-foreground">মোট প্রশ্ন</p>
             </div>
           </CardContent>
@@ -706,7 +894,13 @@ export default function QASection() {
               <CheckCircle2 className="w-4 h-4 text-teal-600" />
             </div>
             <div>
-              <p className="text-lg font-bold">{loading ? <Skeleton className="h-5 w-8" /> : toBengaliNum(stats.answered)}</p>
+              <div className="text-lg font-bold">
+                {loading ? (
+                  <Skeleton className="h-5 w-8" />
+                ) : (
+                  toBengaliNum(stats.answered)
+                )}
+              </div>
               <p className="text-[10px] text-muted-foreground">উত্তর হয়েছে</p>
             </div>
           </CardContent>
@@ -717,7 +911,13 @@ export default function QASection() {
               <MessageCircleQuestion className="w-4 h-4 text-amber-600" />
             </div>
             <div>
-              <p className="text-lg font-bold">{loading ? <Skeleton className="h-5 w-8" /> : toBengaliNum(stats.unanswered)}</p>
+              <div className="text-lg font-bold">
+                {loading ? (
+                  <Skeleton className="h-5 w-8" />
+                ) : (
+                  toBengaliNum(stats.unanswered)
+                )}
+              </div>
               <p className="text-[10px] text-muted-foreground">উত্তরহীন</p>
             </div>
           </CardContent>
@@ -728,7 +928,13 @@ export default function QASection() {
               <Sparkles className="w-4 h-4 text-emerald-600" />
             </div>
             <div>
-              <p className="text-lg font-bold">{loading ? <Skeleton className="h-5 w-8" /> : `${toBengaliNum(stats.rate)}%`}</p>
+              <div className="text-lg font-bold">
+                {loading ? (
+                  <Skeleton className="h-5 w-8" />
+                ) : (
+                  `${toBengaliNum(stats.rate)}%`
+                )}
+              </div>
               <p className="text-[10px] text-muted-foreground">সমাধান হার</p>
             </div>
           </CardContent>
@@ -755,7 +961,7 @@ export default function QASection() {
               variant="ghost"
               size="icon"
               className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
-              onClick={() => setSearchQuery('')}
+              onClick={() => setSearchQuery("")}
             >
               <X className="w-3 h-3" />
             </Button>
@@ -769,13 +975,20 @@ export default function QASection() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">সব বিষয়</SelectItem>
-            {subjects.map(s => (
-              <SelectItem key={s.id} value={s.id}>{s.nameBn}</SelectItem>
+            {subjects.map((s) => (
+              <SelectItem key={s.id} value={s.id}>
+                {s.nameBn}
+              </SelectItem>
             ))}
           </SelectContent>
         </Select>
 
-        <Select value={sortBy} onValueChange={(v) => setSortBy(v as 'recent' | 'popular' | 'unanswered')}>
+        <Select
+          value={sortBy}
+          onValueChange={(v) =>
+            setSortBy(v as "recent" | "popular" | "unanswered")
+          }
+        >
           <SelectTrigger className="w-full sm:w-[180px]">
             <ArrowUpDown className="w-3.5 h-3.5 mr-1" />
             <SelectValue />
@@ -798,7 +1011,9 @@ export default function QASection() {
           <Card className="border-red-500/30 bg-red-500/5">
             <CardContent className="p-6 text-center">
               <AlertCircle className="w-12 h-12 mx-auto mb-3 text-red-500/50" />
-              <p className="text-sm text-red-600 dark:text-red-400 mb-3">{error}</p>
+              <p className="text-sm text-red-600 dark:text-red-400 mb-3">
+                {error}
+              </p>
               <Button
                 variant="outline"
                 size="sm"
@@ -817,7 +1032,7 @@ export default function QASection() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Skeleton Questions List */}
           <div className="lg:col-span-1 space-y-3">
-            {[1, 2, 3, 4, 5].map(i => (
+            {[1, 2, 3, 4, 5].map((i) => (
               <div key={i} className="p-4 rounded-lg border">
                 <div className="flex items-start gap-3">
                   <Skeleton className="shrink-0 w-8 h-8 rounded-full" />
@@ -872,9 +1087,12 @@ export default function QASection() {
                   </div>
                 ) : (
                   filteredQuestions.map((q, index) => {
-                    const answerCount = q._count?.answers || q.answers?.length || 0;
-                    const subjectName = q.subject?.nameBn || '';
-                    const tagColor = subjectName ? getSubjectTagColor(subjectName) : null;
+                    const answerCount =
+                      q._count?.answers || q.answers?.length || 0;
+                    const subjectName = q.subject?.nameBn || "";
+                    const tagColor = subjectName
+                      ? getSubjectTagColor(subjectName)
+                      : null;
                     const isBookmarked = bookmarks.has(q.id);
                     const userVote = votes.questions[q.id] || 0;
                     const displayVote = q.upvotes;
@@ -888,8 +1106,10 @@ export default function QASection() {
                       >
                         <Card
                           className={`cursor-pointer transition-all hover:shadow-md group ${
-                            selectedQuestion?.id === q.id ? 'ring-2 ring-primary border-primary/30' : ''
-                          } ${q.isSolved ? 'border-emerald-500/20' : ''}`}
+                            selectedQuestion?.id === q.id
+                              ? "ring-2 ring-primary border-primary/30"
+                              : ""
+                          } ${q.isSolved ? "border-emerald-500/20" : ""}`}
                           onClick={() => fetchQuestionDetail(q.id)}
                         >
                           <CardContent className="p-4">
@@ -899,19 +1119,27 @@ export default function QASection() {
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  className={`h-6 w-6 ${userVote === 1 ? 'text-emerald-500' : 'text-muted-foreground'}`}
-                                  onClick={(e) => { e.stopPropagation(); handleVoteQuestion(q.id, 1); }}
+                                  className={`h-6 w-6 ${userVote === 1 ? "text-emerald-500" : "text-muted-foreground"}`}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleVoteQuestion(q.id, 1);
+                                  }}
                                 >
                                   <ThumbsUp className="w-3.5 h-3.5" />
                                 </Button>
-                                <span className={`text-xs font-bold ${displayVote > 0 ? 'text-emerald-600' : displayVote < 0 ? 'text-red-500' : 'text-muted-foreground'}`}>
+                                <span
+                                  className={`text-xs font-bold ${displayVote > 0 ? "text-emerald-600" : displayVote < 0 ? "text-red-500" : "text-muted-foreground"}`}
+                                >
                                   {toBengaliNum(displayVote)}
                                 </span>
                                 <Button
                                   variant="ghost"
                                   size="icon"
-                                  className={`h-6 w-6 ${userVote === -1 ? 'text-red-500' : 'text-muted-foreground'}`}
-                                  onClick={(e) => { e.stopPropagation(); handleVoteQuestion(q.id, -1); }}
+                                  className={`h-6 w-6 ${userVote === -1 ? "text-red-500" : "text-muted-foreground"}`}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleVoteQuestion(q.id, -1);
+                                  }}
                                 >
                                   <ThumbsDown className="w-3.5 h-3.5" />
                                 </Button>
@@ -929,7 +1157,10 @@ export default function QASection() {
                                           variant="ghost"
                                           size="icon"
                                           className="h-6 w-6 shrink-0"
-                                          onClick={(e) => { e.stopPropagation(); handleBookmark(q.id); }}
+                                          onClick={(e) => {
+                                            e.stopPropagation();
+                                            handleBookmark(q.id);
+                                          }}
                                         >
                                           {isBookmarked ? (
                                             <BookmarkCheck className="w-3.5 h-3.5 text-emerald-500" />
@@ -938,21 +1169,30 @@ export default function QASection() {
                                           )}
                                         </Button>
                                       </TooltipTrigger>
-                                      <TooltipContent>{isBookmarked ? 'বুকমার্ক সরান' : 'বুকমার্ক করুন'}</TooltipContent>
+                                      <TooltipContent>
+                                        {isBookmarked
+                                          ? "বুকমার্ক সরান"
+                                          : "বুকমার্ক করুন"}
+                                      </TooltipContent>
                                     </Tooltip>
                                   </TooltipProvider>
                                 </div>
 
                                 <div className="flex items-center gap-2 mt-1.5 flex-wrap">
                                   {/* Answer count badge */}
-                                  <Badge variant="secondary" className="text-xs">
+                                  <Badge
+                                    variant="secondary"
+                                    className="text-xs"
+                                  >
                                     <MessageCircle className="w-3 h-3 mr-1" />
                                     {toBengaliNum(answerCount)}
                                   </Badge>
 
                                   {/* Subject tag */}
                                   {tagColor && (
-                                    <Badge className={`text-xs ${tagColor.bg} ${tagColor.text} border ${tagColor.border}`}>
+                                    <Badge
+                                      className={`text-xs ${tagColor.bg} ${tagColor.text} border ${tagColor.border}`}
+                                    >
                                       {subjectName}
                                     </Badge>
                                   )}
@@ -974,7 +1214,10 @@ export default function QASection() {
                                     variant="ghost"
                                     size="icon"
                                     className="h-5 w-5 text-muted-foreground hover:text-primary"
-                                    onClick={(e) => { e.stopPropagation(); handleShare(q.id); }}
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      handleShare(q.id);
+                                    }}
                                   >
                                     <Share2 className="w-3 h-3" />
                                   </Button>
@@ -1022,12 +1265,18 @@ export default function QASection() {
               <Card className="h-[650px] flex items-center justify-center">
                 <div className="text-center">
                   <AlertCircle className="w-12 h-12 mx-auto mb-3 text-red-500/50" />
-                  <p className="text-sm text-red-600 dark:text-red-400 mb-3">{detailError}</p>
+                  <p className="text-sm text-red-600 dark:text-red-400 mb-3">
+                    {detailError}
+                  </p>
                   <Button
                     variant="outline"
                     size="sm"
                     className="gap-1.5"
-                    onClick={() => selectedQuestion ? fetchQuestionDetail(selectedQuestion.id) : null}
+                    onClick={() =>
+                      selectedQuestion
+                        ? fetchQuestionDetail(selectedQuestion.id)
+                        : null
+                    }
                   >
                     <RefreshCw className="w-3.5 h-3.5" />
                     আবার চেষ্টা করুন
@@ -1040,7 +1289,9 @@ export default function QASection() {
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
               >
-                <Card className={`mb-6 ${selectedQuestion.isSolved ? 'border-emerald-500/20' : ''}`}>
+                <Card
+                  className={`mb-6 ${selectedQuestion.isSolved ? "border-emerald-500/20" : ""}`}
+                >
                   <CardHeader>
                     <div className="flex items-start gap-3">
                       {/* Vote column */}
@@ -1048,8 +1299,10 @@ export default function QASection() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className={`h-8 w-8 ${(votes.questions[selectedQuestion.id] || 0) === 1 ? 'text-emerald-500' : ''}`}
-                          onClick={() => handleVoteQuestion(selectedQuestion.id, 1)}
+                          className={`h-8 w-8 ${(votes.questions[selectedQuestion.id] || 0) === 1 ? "text-emerald-500" : ""}`}
+                          onClick={() =>
+                            handleVoteQuestion(selectedQuestion.id, 1)
+                          }
                         >
                           <ThumbsUp className="w-4 h-4" />
                         </Button>
@@ -1059,8 +1312,10 @@ export default function QASection() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          className={`h-8 w-8 ${(votes.questions[selectedQuestion.id] || 0) === -1 ? 'text-red-500' : ''}`}
-                          onClick={() => handleVoteQuestion(selectedQuestion.id, -1)}
+                          className={`h-8 w-8 ${(votes.questions[selectedQuestion.id] || 0) === -1 ? "text-red-500" : ""}`}
+                          onClick={() =>
+                            handleVoteQuestion(selectedQuestion.id, -1)
+                          }
                         >
                           <ThumbsDown className="w-4 h-4" />
                         </Button>
@@ -1069,11 +1324,17 @@ export default function QASection() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-2">
                           <div>
-                            <CardTitle className="text-lg">{selectedQuestion.title}</CardTitle>
+                            <CardTitle className="text-lg">
+                              {selectedQuestion.title}
+                            </CardTitle>
                             <p className="text-sm text-muted-foreground mt-1 flex items-center gap-2 flex-wrap">
                               <span className="flex items-center gap-1">
                                 {selectedQuestion.user?.avatar ? (
-                                  <img src={selectedQuestion.user.avatar} alt="" className="w-4 h-4 rounded-full" />
+                                  <img
+                                    src={selectedQuestion.user.avatar}
+                                    alt=""
+                                    className="w-4 h-4 rounded-full"
+                                  />
                                 ) : (
                                   <UserCircle className="w-4 h-4" />
                                 )}
@@ -1090,7 +1351,9 @@ export default function QASection() {
                               variant="ghost"
                               size="icon"
                               className="h-8 w-8"
-                              onClick={() => handleBookmark(selectedQuestion.id)}
+                              onClick={() =>
+                                handleBookmark(selectedQuestion.id)
+                              }
                             >
                               {bookmarks.has(selectedQuestion.id) ? (
                                 <BookmarkCheck className="w-4 h-4 text-emerald-500" />
@@ -1112,7 +1375,9 @@ export default function QASection() {
                         {/* Subject tag */}
                         {selectedQuestion.subject?.nameBn && (
                           <div className="mt-2">
-                            <Badge className={`${getSubjectTagColor(selectedQuestion.subject.nameBn).bg} ${getSubjectTagColor(selectedQuestion.subject.nameBn).text} border ${getSubjectTagColor(selectedQuestion.subject.nameBn).border}`}>
+                            <Badge
+                              className={`${getSubjectTagColor(selectedQuestion.subject.nameBn).bg} ${getSubjectTagColor(selectedQuestion.subject.nameBn).text} border ${getSubjectTagColor(selectedQuestion.subject.nameBn).border}`}
+                            >
                               {selectedQuestion.subject.nameBn}
                             </Badge>
                           </div>
@@ -1122,19 +1387,26 @@ export default function QASection() {
                   </CardHeader>
                   <CardContent>
                     <div className="ml-11">
-                      <p className="text-sm leading-relaxed whitespace-pre-wrap">{selectedQuestion.content}</p>
+                      <p className="text-sm leading-relaxed whitespace-pre-wrap">
+                        {selectedQuestion.content}
+                      </p>
 
                       {/* Tags */}
-                      {selectedQuestion.tags && selectedQuestion.tags.length > 0 && (
-                        <div className="flex flex-wrap gap-1.5 mt-3">
-                          {selectedQuestion.tags.map((tag, i) => (
-                            <Badge key={i} variant="secondary" className="text-xs">
-                              <Tag className="w-2.5 h-2.5 mr-1" />
-                              {tag}
-                            </Badge>
-                          ))}
-                        </div>
-                      )}
+                      {selectedQuestion.tags &&
+                        selectedQuestion.tags.length > 0 && (
+                          <div className="flex flex-wrap gap-1.5 mt-3">
+                            {selectedQuestion.tags.map((tag, i) => (
+                              <Badge
+                                key={i}
+                                variant="secondary"
+                                className="text-xs"
+                              >
+                                <Tag className="w-2.5 h-2.5 mr-1" />
+                                {tag}
+                              </Badge>
+                            ))}
+                          </div>
+                        )}
 
                       {selectedQuestion.isSolved && (
                         <Badge className="mt-3 bg-emerald-500/10 text-emerald-600 border-0">
@@ -1157,7 +1429,7 @@ export default function QASection() {
                 </div>
                 <div className="space-y-4">
                   {selectedQuestion.answers?.map((answer) => {
-                    const isTeacher = answer.user?.role === 'teacher';
+                    const isTeacher = answer.user?.role === "teacher";
                     const answerVote = votes.answers[answer.id] || 0;
                     // answer.upvotes is already optimistically updated in handleVoteAnswer,
                     // so we use it directly as the display value
@@ -1166,7 +1438,7 @@ export default function QASection() {
                     return (
                       <Card
                         key={answer.id}
-                        className={`${answer.isAccepted ? 'border-emerald-500/30 bg-emerald-500/5' : ''}`}
+                        className={`${answer.isAccepted ? "border-emerald-500/30 bg-emerald-500/5" : ""}`}
                       >
                         <CardContent className="p-4">
                           <div className="flex items-start gap-3">
@@ -1175,17 +1447,31 @@ export default function QASection() {
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className={`h-7 w-7 ${answerVote === 1 ? 'text-emerald-500' : ''}`}
-                                onClick={() => handleVoteAnswer(selectedQuestion.id, answer.id, 1)}
+                                className={`h-7 w-7 ${answerVote === 1 ? "text-emerald-500" : ""}`}
+                                onClick={() =>
+                                  handleVoteAnswer(
+                                    selectedQuestion.id,
+                                    answer.id,
+                                    1,
+                                  )
+                                }
                               >
                                 <ThumbsUp className="w-3.5 h-3.5" />
                               </Button>
-                              <span className="text-xs font-semibold">{toBengaliNum(displayAnswerVote)}</span>
+                              <span className="text-xs font-semibold">
+                                {toBengaliNum(displayAnswerVote)}
+                              </span>
                               <Button
                                 variant="ghost"
                                 size="icon"
-                                className={`h-7 w-7 ${answerVote === -1 ? 'text-red-500' : ''}`}
-                                onClick={() => handleVoteAnswer(selectedQuestion.id, answer.id, -1)}
+                                className={`h-7 w-7 ${answerVote === -1 ? "text-red-500" : ""}`}
+                                onClick={() =>
+                                  handleVoteAnswer(
+                                    selectedQuestion.id,
+                                    answer.id,
+                                    -1,
+                                  )
+                                }
                               >
                                 <ThumbsDown className="w-3.5 h-3.5" />
                               </Button>
@@ -1193,12 +1479,18 @@ export default function QASection() {
 
                             <div className="flex-1 min-w-0">
                               <div className="flex items-center gap-2 mb-2">
-                                <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-medium ${
-                                  isTeacher ? 'bg-amber-500/10 text-amber-600' : 'bg-emerald-500/10 text-emerald-600'
-                                }`}>
-                                  {answer.user?.name?.[0] || '?'}
+                                <div
+                                  className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-medium ${
+                                    isTeacher
+                                      ? "bg-amber-500/10 text-amber-600"
+                                      : "bg-emerald-500/10 text-emerald-600"
+                                  }`}
+                                >
+                                  {answer.user?.name?.[0] || "?"}
                                 </div>
-                                <span className="text-sm font-medium">{answer.user?.name}</span>
+                                <span className="text-sm font-medium">
+                                  {answer.user?.name}
+                                </span>
                                 {isTeacher && (
                                   <Badge className="bg-amber-500/10 text-amber-600 text-[10px] px-1.5 py-0 border-0">
                                     <Shield className="w-3 h-3 mr-0.5" />
@@ -1222,17 +1514,22 @@ export default function QASection() {
                                   </Badge>
                                 )}
                                 {/* Accept answer button (only for question author) */}
-                                {user && user.id === selectedQuestion.user?.id && !answer.isAccepted && !selectedQuestion.isSolved && (
-                                  <Button
-                                    variant="outline"
-                                    size="sm"
-                                    className="text-xs h-7 gap-1 border-emerald-500/30 text-emerald-600 hover:bg-emerald-500/10"
-                                    onClick={() => handleAcceptAnswer(answer.id)}
-                                  >
-                                    <CheckCircle2 className="w-3 h-3" />
-                                    গ্রহণ করুন
-                                  </Button>
-                                )}
+                                {user &&
+                                  user.id === selectedQuestion.user?.id &&
+                                  !answer.isAccepted &&
+                                  !selectedQuestion.isSolved && (
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      className="text-xs h-7 gap-1 border-emerald-500/30 text-emerald-600 hover:bg-emerald-500/10"
+                                      onClick={() =>
+                                        handleAcceptAnswer(answer.id)
+                                      }
+                                    >
+                                      <CheckCircle2 className="w-3 h-3" />
+                                      গ্রহণ করুন
+                                    </Button>
+                                  )}
                               </div>
                             </div>
                           </div>
@@ -1241,7 +1538,8 @@ export default function QASection() {
                     );
                   })}
 
-                  {(!selectedQuestion.answers || selectedQuestion.answers.length === 0) && (
+                  {(!selectedQuestion.answers ||
+                    selectedQuestion.answers.length === 0) && (
                     <div className="text-center py-8 text-muted-foreground">
                       <MessageCircle className="w-10 h-10 mx-auto mb-2 opacity-20" />
                       <p className="text-sm">এখনো কোনো উত্তর দেওয়া হয়নি</p>
@@ -1275,7 +1573,7 @@ export default function QASection() {
                             disabled={isSubmitting || !answerText.trim()}
                           >
                             <Send className="w-4 h-4" />
-                            {isSubmitting ? 'পোস্ট হচ্ছে...' : 'উত্তর দিন'}
+                            {isSubmitting ? "পোস্ট হচ্ছে..." : "উত্তর দিন"}
                           </Button>
                         </div>
                       </CardContent>
@@ -1288,7 +1586,11 @@ export default function QASection() {
                 <div className="text-center text-muted-foreground">
                   <motion.div
                     animate={{ y: [0, -8, 0] }}
-                    transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+                    transition={{
+                      duration: 3,
+                      repeat: Infinity,
+                      ease: "easeInOut",
+                    }}
                   >
                     <MessageCircleQuestion className="w-16 h-16 mx-auto mb-4 opacity-20" />
                   </motion.div>

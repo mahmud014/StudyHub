@@ -1,21 +1,21 @@
-import { db } from '@/lib/db';
-import { NextResponse } from 'next/server';
-import { getSessionUser } from '@/lib/auth';
+import { db } from "@/lib/mongodb";
+import { NextResponse } from "next/server";
+import { getSessionUser } from "@/lib/auth";
 
 export async function GET(request: Request) {
   try {
     const sessionUser = await getSessionUser();
     if (!sessionUser) {
       return NextResponse.json(
-        { success: false, error: 'অননুমোদিত অ্যাক্সেস' },
-        { status: 401 }
+        { success: false, error: "অননুমোদিত অ্যাক্সেস" },
+        { status: 401 },
       );
     }
     const userId = sessionUser.id;
 
     const results = await db.examResult.findMany({
       where: { userId },
-      orderBy: { completedAt: 'desc' },
+      orderBy: { completedAt: "desc" },
       include: {
         exam: {
           select: {
@@ -33,10 +33,10 @@ export async function GET(request: Request) {
 
     return NextResponse.json({ success: true, data: results });
   } catch (error) {
-    console.error('Error fetching exam results:', error);
+    console.error("Error fetching exam results:", error);
     return NextResponse.json(
-      { success: false, error: 'পরীক্ষার ফলাফল লোড করতে সমস্যা হয়েছে' },
-      { status: 500 }
+      { success: false, error: "পরীক্ষার ফলাফল লোড করতে সমস্যা হয়েছে" },
+      { status: 500 },
     );
   }
 }

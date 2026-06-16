@@ -1,6 +1,6 @@
-import { db } from '@/lib/db';
-import { NextResponse } from 'next/server';
-import { getSessionUser } from '@/lib/auth';
+import { db } from "@/lib/mongodb";
+import { NextResponse } from "next/server";
+import { getSessionUser } from "@/lib/auth";
 
 interface SubmitRequestBody {
   answers: Record<string, string>;
@@ -17,14 +17,14 @@ interface QuestionResult {
 
 export async function POST(
   request: Request,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> },
 ) {
   try {
     const sessionUser = await getSessionUser();
     if (!sessionUser) {
       return NextResponse.json(
-        { success: false, error: 'অননুমোদিত অ্যাক্সেস' },
-        { status: 401 }
+        { success: false, error: "অননুমোদিত অ্যাক্সেস" },
+        { status: 401 },
       );
     }
     const userId = sessionUser.id;
@@ -35,8 +35,8 @@ export async function POST(
 
     if (!answers) {
       return NextResponse.json(
-        { success: false, error: 'answers প্রয়োজন' },
-        { status: 400 }
+        { success: false, error: "answers প্রয়োজন" },
+        { status: 400 },
       );
     }
 
@@ -45,15 +45,15 @@ export async function POST(
       where: { id: examId },
       include: {
         questions: {
-          orderBy: { order: 'asc' },
+          orderBy: { order: "asc" },
         },
       },
     });
 
     if (!exam) {
       return NextResponse.json(
-        { success: false, error: 'পরীক্ষা পাওয়া যায়নি' },
-        { status: 404 }
+        { success: false, error: "পরীক্ষা পাওয়া যায়নি" },
+        { status: 404 },
       );
     }
 
@@ -62,7 +62,7 @@ export async function POST(
     const results: QuestionResult[] = [];
 
     for (const question of exam.questions) {
-      const selected = answers[question.id] || '';
+      const selected = answers[question.id] || "";
       const isCorrect = selected === question.correctAnswer;
       if (isCorrect) score += question.marks;
 
@@ -71,7 +71,7 @@ export async function POST(
         selected,
         correct: question.correctAnswer,
         isCorrect,
-        explanation: question.explanation || '',
+        explanation: question.explanation || "",
       });
     }
 
@@ -97,10 +97,10 @@ export async function POST(
       },
     });
   } catch (error) {
-    console.error('Error submitting exam:', error);
+    console.error("Error submitting exam:", error);
     return NextResponse.json(
-      { success: false, error: 'পরীক্ষা জমা দিতে সমস্যা হয়েছে' },
-      { status: 500 }
+      { success: false, error: "পরীক্ষা জমা দিতে সমস্যা হয়েছে" },
+      { status: 500 },
     );
   }
 }

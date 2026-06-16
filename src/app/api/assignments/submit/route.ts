@@ -1,6 +1,6 @@
-import { db } from '@/lib/db';
-import { NextResponse } from 'next/server';
-import { getSessionUser } from '@/lib/auth';
+import { db } from "@/lib/mongodb";
+import { NextResponse } from "next/server";
+import { getSessionUser } from "@/lib/auth";
 
 interface SubmitRequestBody {
   fileUrl: string;
@@ -13,8 +13,8 @@ export async function POST(request: Request) {
     const sessionUser = await getSessionUser();
     if (!sessionUser) {
       return NextResponse.json(
-        { success: false, error: 'অননুমোদিত অ্যাক্সেস' },
-        { status: 401 }
+        { success: false, error: "অননুমোদিত অ্যাক্সেস" },
+        { status: 401 },
       );
     }
     const userId = sessionUser.id;
@@ -24,8 +24,8 @@ export async function POST(request: Request) {
 
     if (!fileUrl || !assignmentId) {
       return NextResponse.json(
-        { success: false, error: 'fileUrl এবং assignmentId প্রয়োজন' },
-        { status: 400 }
+        { success: false, error: "fileUrl এবং assignmentId প্রয়োজন" },
+        { status: 400 },
       );
     }
 
@@ -36,8 +36,8 @@ export async function POST(request: Request) {
 
     if (!assignment) {
       return NextResponse.json(
-        { success: false, error: 'অ্যাসাইনমেন্ট পাওয়া যায়নি' },
-        { status: 404 }
+        { success: false, error: "অ্যাসাইনমেন্ট পাওয়া যায়নি" },
+        { status: 404 },
       );
     }
 
@@ -48,8 +48,11 @@ export async function POST(request: Request) {
 
     if (existing) {
       return NextResponse.json(
-        { success: false, error: 'আপনি ইতিমধ্যে এই অ্যাসাইনমেন্ট জমা দিয়েছেন' },
-        { status: 409 }
+        {
+          success: false,
+          error: "আপনি ইতিমধ্যে এই অ্যাসাইনমেন্ট জমা দিয়েছেন",
+        },
+        { status: 409 },
       );
     }
 
@@ -58,16 +61,19 @@ export async function POST(request: Request) {
         assignmentId,
         userId,
         fileUrl,
-        fileName: fileName || fileUrl.split('/').pop() || 'file',
+        fileName: fileName || fileUrl.split("/").pop() || "file",
       },
     });
 
-    return NextResponse.json({ success: true, data: submission }, { status: 201 });
-  } catch (error) {
-    console.error('Error submitting assignment:', error);
     return NextResponse.json(
-      { success: false, error: 'অ্যাসাইনমেন্ট জমা দিতে সমস্যা হয়েছে' },
-      { status: 500 }
+      { success: true, data: submission },
+      { status: 201 },
+    );
+  } catch (error) {
+    console.error("Error submitting assignment:", error);
+    return NextResponse.json(
+      { success: false, error: "অ্যাসাইনমেন্ট জমা দিতে সমস্যা হয়েছে" },
+      { status: 500 },
     );
   }
 }

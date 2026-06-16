@@ -1,40 +1,55 @@
-import { db } from '@/lib/db';
-import { NextResponse } from 'next/server';
-import { getSessionUser } from '@/lib/auth';
+import clientPromise from "@/lib/mongodb";
+import { NextResponse } from "next/server";
+import { getSessionUser } from "@/lib/auth";
+import { ObjectId } from "mongodb";
 
 export async function GET(request: Request) {
   try {
     const { searchParams } = new URL(request.url);
-    const subjectId = searchParams.get('subjectId');
-    const chapterId = searchParams.get('chapterId');
+    const subjectId = searchParams.get("subjectId");
+    const chapterId = searchParams.get("chapterId");
 
-    const where: {
-      subjectId?: string;
-      chapterId?: string;
-    } = {};
+    const client = await clientPromise;
+    const db = client.db();
 
-    if (subjectId) where.subjectId = subjectId;
-    if (chapterId) where.chapterId = chapterId;
+    // ফিল্টারিং লজিক
+    const matchQuery: any = {};
+    if (subjectId) matchQuery.subjectId = new ObjectId(subjectId);
+    if (chapterId) matchQuery.chapterId = new ObjectId(chapterId);
 
-    const videos = await db.video.findMany({
-      where,
-      orderBy: [{ order: 'asc' }, { createdAt: 'desc' }],
-      include: {
-        subject: {
-          select: { id: true, name: true, nameBn: true },
+    // Aggregate দিয়ে Join (Include) করা
+    const videos = await db
+      .collection("videos")
+      .aggregate([
+        { $match: matchQuery },
+        {
+          $lookup: {
+            from: "subjects",
+            localField: "subjectId",
+            foreignField: "_id",
+            as: "subject",
+          },
         },
-        chapter: {
-          select: { id: true, name: true, nameBn: true },
+        {
+          $lookup: {
+            from: "chapters",
+            localField: "chapterId",
+            foreignField: "_id",
+            as: "chapter",
+          },
         },
-      },
-    });
+        { $unwind: { path: "$subject", preserveNullAndEmptyArrays: true } },
+        { $unwind: { path: "$chapter", preserveNullAndEmptyArrays: true } },
+        { $sort: { order: 1, createdAt: -1 } },
+      ])
+      .toArray();
 
     return NextResponse.json({ success: true, data: videos });
   } catch (error) {
-    console.error('Error fetching videos:', error);
+    console.error("Error fetching videos:", error);
     return NextResponse.json(
-      { success: false, error: 'ভিডিও লোড করতে সমস্যা হয়েছে' },
-      { status: 500 }
+      { success: false, error: "ভিডিও লোড করতে সমস্যা হয়েছে" },
+      { status: 500 },
     );
   }
 }
@@ -42,53 +57,52 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   try {
     const sessionUser = await getSessionUser();
-    if (!sessionUser || (sessionUser.role !== 'admin' && sessionUser.role !== 'teacher')) {
+    if (
+      !sessionUser ||
+      (sessionUser.role !== "admin" && sessionUser.role !== "teacher")
+    ) {
       return NextResponse.json(
-        { success: false, error: 'অননুমোদিত অ্যাক্সেস' },
-        { status: 403 }
+        { success: false, error: "অননুমোদিত অ্যাক্সেস" },
+        { status: 403 },
       );
     }
 
     const body = await request.json();
-    const { subjectId, chapterId, title, titleBn, youtubeId, duration, order } = body as {
-      subjectId: string;
-      chapterId?: string;
-      title: string;
-      titleBn: string;
-      youtubeId: string;
-      duration?: number;
-      order?: number;
-    };
+    const { subjectId, chapterId, title, titleBn, youtubeId, duration, order } =
+      body;
 
     if (!subjectId || !title || !titleBn || !youtubeId) {
       return NextResponse.json(
-        { success: false, error: 'বিষয়, শিরোনাম ও ইউটিউব আইডি প্রয়োজন' },
-        { status: 400 }
+        { success: false, error: "বিষয়, শিরোনাম ও ইউটিউব আইডি প্রয়োজন" },
+        { status: 400 },
       );
     }
 
-    const video = await db.video.create({
-      data: {
-        subjectId,
-        chapterId: chapterId || null,
-        title,
-        titleBn,
-        youtubeId,
-        duration: duration || null,
-        order: order || 0,
-      },
-      include: {
-        subject: { select: { id: true, name: true, nameBn: true } },
-        chapter: { select: { id: true, name: true, nameBn: true } },
-      },
-    });
+    const client = await clientPromise;
+    const db = client.db();
 
-    return NextResponse.json({ success: true, data: video });
+    const newVideo = {
+      subjectId: new ObjectId(subjectId),
+      chapterId: chapterId ? new ObjectId(chapterId) : null,
+      title,
+      titleBn,
+      youtubeId,
+      duration: duration || null,
+      order: order || 0,
+      createdAt: new Date(),
+    };
+
+    const result = await db.collection("videos").insertOne(newVideo);
+
+    return NextResponse.json({
+      success: true,
+      data: { ...newVideo, _id: result.insertedId },
+    });
   } catch (error) {
-    console.error('Error creating video:', error);
+    console.error("Error creating video:", error);
     return NextResponse.json(
-      { success: false, error: 'ভিডিও তৈরি করতে সমস্যা হয়েছে' },
-      { status: 500 }
+      { success: false, error: "ভিডিও তৈরি করতে সমস্যা হয়েছে" },
+      { status: 500 },
     );
   }
 }
