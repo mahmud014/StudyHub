@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<svg version="1.1" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" x="0px" y="0px"
+	 viewBox="0 0 32 32" style="enable-background:new 0 0 32 32;" xml:space="preserve">
+<defs>
+  <linearGradient id="bg-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+    <stop offset="0%" stop-color="#047857" />
+    <stop offset="100%" stop-color="#10B981" />
+  </linearGradient>
+</defs>
+<g>
+  <!-- Background Card -->
+  <rect x="2" y="2" width="28" height="28" rx="7" fill="url(#bg-gradient)" />
+  
+  <!-- Graduation Cap (Top) -->
+  <path fill="#FFFFFF" d="M16,6.5 l9,4.5 l-9,4.5 l-9,-4.5 Z" />
+  <path fill="#FFFFFF" opacity="0.9" d="M11,13.5 v3 c0,1.5 2,2.5 5,2.5 s5,-1 5,-2.5 v-3 Z" />
+  <path stroke="#FFFFFF" stroke-width="0.8" fill="none" d="M22,11.5 v4.5 c0,0.5 -0.5,0.8 -1,0.8" />
+  
+  <!-- Open Book (Bottom) -->
+  <path fill="#FFFFFF" d="M16,20.5 c1.8,-1.8 5,-1.8 9,-0.5 v6.5 c-4,-1.3 -7.2,-1.3 -9,0.5 c-1.8,-1.8 -5,-1.8 -9,-0.5 v-6.5 c4,-1.3 7.2,-1.3 9,0.5 Z" />
+  <line x1="16" y1="20.5" x2="16" y2="27" stroke="#047857" stroke-width="0.8" />
+</g>
+</svg>
