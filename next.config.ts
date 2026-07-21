@@ -7,14 +7,7 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: true,
   },
   reactStrictMode: false,
-  allowedDevOrigins: [
-    'localhost',
-  ],
-  experimental: {
-    turbopack: {
-      root: __dirname,
-    },
-  },
+  allowedDevOrigins: ["localhost"],
 };
 
 export default nextConfig;
