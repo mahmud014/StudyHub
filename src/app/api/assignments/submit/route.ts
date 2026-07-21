@@ -1,6 +1,7 @@
-import db from "@/lib/mongodb";
+import clientPromise from "@/lib/mongodb";
 import { NextResponse } from "next/server";
 import { getSessionUser } from "@/lib/auth";
+import { ObjectId } from "mongodb";
 
 interface SubmitRequestBody {
   fileUrl: string;
@@ -29,9 +30,23 @@ export async function POST(request: Request) {
       );
     }
 
+    // Connect to database
+    const client = await clientPromise;
+    const db = client.db();
+
     // Check if assignment exists
-    const assignment = await db.assignment.findUnique({
-      where: { id: assignmentId },
+    let assignmentObjectId;
+    try {
+      assignmentObjectId = new ObjectId(assignmentId);
+    } catch {
+      return NextResponse.json(
+        { success: false, error: "অ্যাসাইনমেন্ট আইডি সঠিক নয়" },
+        { status: 400 },
+      );
+    }
+
+    const assignment = await db.collection("Assignment").findOne({
+      _id: assignmentObjectId,
     });
 
     if (!assignment) {
@@ -42,8 +57,9 @@ export async function POST(request: Request) {
     }
 
     // Check if already submitted
-    const existing = await db.assignmentSubmission.findFirst({
-      where: { assignmentId, userId },
+    const existing = await db.collection("AssignmentSubmission").findOne({
+      assignmentId: assignmentId,
+      userId: userId,
     });
 
     if (existing) {
@@ -56,17 +72,26 @@ export async function POST(request: Request) {
       );
     }
 
-    const submission = await db.assignmentSubmission.create({
-      data: {
-        assignmentId,
-        userId,
-        fileUrl,
-        fileName: fileName || fileUrl.split("/").pop() || "file",
-      },
-    });
+    // Create submission data
+    const newSubmission = {
+      assignmentId: assignmentId,
+      userId: userId,
+      fileUrl: fileUrl,
+      fileName: fileName || fileUrl.split("/").pop() || "file",
+      createdAt: new Date(),
+    };
+
+    const result = await db
+      .collection("AssignmentSubmission")
+      .insertOne(newSubmission);
+
+    const createdSubmission = {
+      id: result.insertedId.toString(),
+      ...newSubmission,
+    };
 
     return NextResponse.json(
-      { success: true, data: submission },
+      { success: true, data: createdSubmission },
       { status: 201 },
     );
   } catch (error) {
